@@ -3,7 +3,9 @@ defmodule QuizzWeb.CreateGameLive do
 
   def render(assigns) do
     ~H"""
-    <h1>Create a Quizz</h1>
+    <div class="flex flex-col justify-center items-center gap-5 h-full">
+      <.button phx-click="create-game">Create a Quizz</.button>
+    </div>
     """
   end
 

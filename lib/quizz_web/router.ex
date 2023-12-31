@@ -1,5 +1,4 @@
 defmodule QuizzWeb.Router do
-  alias QuizzWeb.JoinGameLive
   use QuizzWeb, :router
 
   import QuizzWeb.UserAuth

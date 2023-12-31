@@ -3,8 +3,26 @@ defmodule QuizzWeb.HomeLive do
 
   def render(assigns) do
     ~H"""
-    <.link href={~p"/create-game"}>Create a Quizz</.link>
-    <.link href={~p"/join-game"}>Join a quiz</.link>
+    <div class="flex flex-col justify-center items-center gap-5 h-full">
+      <.link
+        href={~p"/create-game"}
+        class={[
+          "phx-submit-loading:opacity-75 rounded-lg bg-zinc-900 hover:bg-zinc-700 py-2 px-3",
+          "text-md font-semibold leading-6 text-white active:text-white/80"
+        ]}
+      >
+        Create a Quizz
+      </.link>
+      <.link
+        href={~p"/join-game"}
+        class={[
+          "phx-submit-loading:opacity-75 rounded-lg bg-zinc-900 hover:bg-zinc-700 py-2 px-3",
+          "text-md font-semibold leading-6 text-white active:text-white/80"
+        ]}
+      >
+        Join a quiz
+      </.link>
+    </div>
     """
   end
 
