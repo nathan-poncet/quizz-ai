@@ -16,6 +16,7 @@ defmodule Quizz.Application do
       {Finch, name: Quizz.Finch},
       # Start a worker by calling: Quizz.Worker.start_link(arg)
       # {Quizz.Worker, arg},
+      Quizz.Games.Supervisor,
       # Start to serve requests, typically the last entry
       QuizzWeb.Endpoint
     ]

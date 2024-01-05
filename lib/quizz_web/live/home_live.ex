@@ -5,19 +5,19 @@ defmodule QuizzWeb.HomeLive do
     ~H"""
     <div class="flex flex-col justify-center items-center gap-5 h-full">
       <.link
-        href={~p"/create-game"}
+        navigate={~p"/create-game"}
         class={[
           "phx-submit-loading:opacity-75 rounded-lg bg-zinc-900 hover:bg-zinc-700 py-2 px-3",
-          "text-md font-semibold leading-6 text-white active:text-white/80"
+          "text-md font-bold leading-6 text-white active:text-white/80"
         ]}
       >
         Create a Quizz
       </.link>
       <.link
-        href={~p"/join-game"}
+        navigate={~p"/join-game"}
         class={[
           "phx-submit-loading:opacity-75 rounded-lg bg-zinc-900 hover:bg-zinc-700 py-2 px-3",
-          "text-md font-semibold leading-6 text-white active:text-white/80"
+          "text-md font-bold leading-6 text-white active:text-white/80"
         ]}
       >
         Join a quiz

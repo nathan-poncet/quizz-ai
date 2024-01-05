@@ -1,6 +1,7 @@
 defmodule Quizz.Games.Client do
   require Logger
 
+  alias Quizz.Games.Topics
   alias Quizz.Games.{Server, ServerSupervisor}
 
   @id_length 16
@@ -66,10 +67,24 @@ defmodule Quizz.Games.Client do
     end
   end
 
+  def topics_generate(_topics) do
+    #  Topics.generate(topics)
+
+    [
+      %{"title" => "maths", "img" => "https://picsum.photos/seed/maths/200/300"},
+      %{"title" => "history", "img" => "https://picsum.photos/seed/history/200/300"},
+      %{"title" => "geography", "img" => "https://picsum.photos/seed/geography/200/300"},
+      %{"title" => "science", "img" => "https://picsum.photos/seed/science/200/300"},
+      %{"title" => "sport", "img" => "https://picsum.photos/seed/sport/200/300"},
+      %{"title" => "music", "img" => "https://picsum.photos/seed/music/200/300"},
+      %{"title" => "cinema", "img" => "https://picsum.photos/seed/cinema/200/300"}
+    ]
+  end
+
   defp server(game_id) do
     case Server.whereis(game_id) do
       :undefined ->
-        {:error, "Game #{game_id} does not exist."}
+        {:error, :game_doesnt_exist}
 
       game_server ->
         {:ok, game_server}

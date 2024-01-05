@@ -10,4 +10,6 @@ defmodule Quizz.Games do
   defdelegate fetch_game(game_id), to: Quizz.Games.Client
 
   defdelegate answer(game_id, player_id, answer), to: Quizz.Games.Client
+
+  defdelegate topics_generate(topics), to: Quizz.Games.Client
 end
