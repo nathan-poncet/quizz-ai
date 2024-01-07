@@ -1,4 +1,4 @@
-defmodule Quizz.Games.Topics do
+defmodule Quizz.Games.GameTopics do
   def generate(topics) when is_list(topics) do
     {:ok, res} =
       OpenAI.chat_completion(

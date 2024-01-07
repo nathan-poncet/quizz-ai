@@ -1,0 +1,41 @@
+<.header>
+  Listing Tests
+  <:actions>
+    <.link patch={~p"/tests/new"}>
+      <.button>New Test</.button>
+    </.link>
+  </:actions>
+</.header>
+
+<.table
+  id="tests"
+  rows={@streams.tests}
+  row_click={fn {_id, test} -> JS.navigate(~p"/tests/#{test}") end}
+>
+  <:col :let={{_id, test}} label="Name"><%= test.name %></:col>
+  <:action :let={{_id, test}}>
+    <div class="sr-only">
+      <.link navigate={~p"/tests/#{test}"}>Show</.link>
+    </div>
+    <.link patch={~p"/tests/#{test}/edit"}>Edit</.link>
+  </:action>
+  <:action :let={{id, test}}>
+    <.link
+      phx-click={JS.push("delete", value: %{id: test.id}) |> hide("##{id}")}
+      data-confirm="Are you sure?"
+    >
+      Delete
+    </.link>
+  </:action>
+</.table>
+
+<.modal :if={@live_action in [:new, :edit]} id="test-modal" show on_cancel={JS.patch(~p"/tests")}>
+  <.live_component
+    module={QuizzWeb.TestLive.FormComponent}
+    id={@test.id || :new}
+    title={@page_title}
+    action={@live_action}
+    test={@test}
+    patch={~p"/tests"}
+  />
+</.modal>

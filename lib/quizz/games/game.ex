@@ -1,68 +1,104 @@
 defmodule Quizz.Games.Game do
-  alias Quizz.Games.Player
-  alias Quizz.Games.Game
-  alias Quizz.Games.Questions
+  use Ecto.Schema
+  import Ecto.Changeset
 
-  defstruct current_question: nil,
-            id: nil,
-            players: [],
-            questions: [],
-            settings: %{
-              min_players: 1,
-              max_players: 20,
-              nb_questions: 10,
-              time_per_question: 10_000,
-              time_to_answer: 30_000,
-              topic: "",
-              difficulty: :easy
-            },
-            status: :not_started
+  alias Quizz.Games.{Game, GamePlayer, GameQuestion, GameQuestions}
 
-  def add_player(
-        %Game{status: status} =
-          _game,
-        _player_id
-      )
-      when status != :not_started,
-      do: {:error, "game has already started"}
+  embedded_schema do
+    field :current_question, :integer
+    field :difficulty, Ecto.Enum, values: [:easy, :medium, :hard, :genius, :godlike]
+    field :nb_questions, :integer
+    field :status, Ecto.Enum, values: [:lobby, :in_play, :finished], default: :lobby
+    field :time_per_question, :integer, default: 10_000
+    field :time_to_answer, :integer, default: 30_000
+    field :topic, :string
 
-  def add_player(
-        %Game{players: players, settings: %{max_players: max_players}} =
-          _game,
-        _player_id
-      )
-      when length(players) >= max_players,
-      do: {:error, "game is full or has already started"}
+    embeds_many :players, GamePlayer
+    embeds_many :questions, GameQuestion
+  end
 
-  def add_player(%Game{status: :not_started} = game, player_id),
-    do: {:ok, %Game{game | players: game.players ++ [%Player{id: player_id}]}}
+  def register(
+        game_id,
+        %{topic: topic, difficulty: difficulty, nb_questions: nb_questions} = params
+      ) do
+    %Game{
+      id: game_id,
+      topic: topic,
+      difficulty: difficulty,
+      nb_questions: nb_questions,
+      questions: GameQuestions.generate(params)
+    }
+  end
 
-  def answer(%Game{players: players} = game, player_id, answer) do
-    new_players =
+  def add_player(%Game{status: :in_play}, _player_id),
+    do: {:error, :game_has_already_started}
+
+  def add_player(%Game{status: :lobby} = game, player_id),
+    do: {:ok, %Game{game | players: game.players ++ [%GamePlayer{id: player_id}]}}
+
+  def answer(%Game{status: status}, _player_id, _answer) when status != :in_play,
+    do: {:error, :game_is_not_in_play}
+
+  def answer(%Game{players: players, status: :in_play} = game, player_id, answer) do
+    case Enum.find(players, fn player -> player.id == player_id end) do
+      nil ->
+        {:error, :player_is_not_in_the_game}
+
+      _ ->
+        {:ok, update_answer(game, player_id, answer)}
+    end
+  end
+
+  def start(%Game{status: status}) when status != :lobby,
+    do: {:error, :game_has_already_started}
+
+  def start(%Game{status: :lobby} = game), do: {:ok, %Game{game | status: :in_play}}
+
+  def registration_changeset(game, attrs) do
+    game
+    |> cast(attrs, [
+      :difficulty,
+      :nb_questions,
+      :topic
+    ])
+    |> validate_required([
+      :difficulty,
+      :nb_questions,
+      :topic
+    ])
+    |> validate_number(:nb_questions, greater_than_or_equal_to: 1)
+    |> validate_length(:topic, max: 160)
+  end
+
+  def update_changeset(game, attrs) do
+    game
+    |> cast(attrs, [
+      :current_question,
+      :status,
+      :time_per_question,
+      :time_to_answer
+    ])
+    |> validate_required([
+      :current_question,
+      :status,
+      :time_per_question,
+      :time_to_answer
+    ])
+    |> validate_number(:current_question, greater_than_or_equal_to: 0)
+    |> validate_number(:time_per_question, greater_than_or_equal_to: 0)
+    |> validate_number(:time_to_answer, greater_than_or_equal_to: 0)
+  end
+
+  defp update_answer(%Game{players: players} = game, player_id, answer) do
+    players =
       Enum.map(players, fn player ->
         if player.id == player_id do
-          Player.add_answer(player, answer)
+          GamePlayer.add_answer(player, answer)
         else
           player
         end
       end)
 
-    %Game{game | players: new_players}
-  end
-
-  def new(game_id, settings) do
-    %Game{id: game_id, settings: settings} |> questions_generate
-  end
-
-  def start(%Game{status: status}) when status != :not_started,
-    do: {:error, "game has already started"}
-
-  def start(%Game{questions: []}), do: {:error, "no questions generated"}
-
-  def start(%Game{status: :not_started} = game), do: {:ok, %Game{game | status: :in_play}}
-
-  defp questions_generate(%Game{settings: settings} = game) do
-    questions = Questions.generate(settings)
-    %Game{game | questions: questions}
+    %Game{game | players: players}
   end
 end

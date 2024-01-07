@@ -1,4 +1,6 @@
-defmodule Quizz.Games.Questions do
+defmodule Quizz.Games.GameQuestions do
+  alias Quizz.Games.GameQuestion
+
   def generate(params) do
     %{topic: topic, difficulty: difficulty, nb_questions: nb_questions} = params
 
@@ -40,7 +42,7 @@ defmodule Quizz.Games.Questions do
     questions = decoded_obj["questions"]
 
     Enum.map(questions, fn question ->
-      %Quizz.Games.Question{
+      %GameQuestion{
         question: question["question"],
         options: question["options"],
         answer: question["answer"]

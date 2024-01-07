@@ -1,0 +1,26 @@
+<.header>
+  Test <%= @test.id %>
+  <:subtitle>This is a test record from your database.</:subtitle>
+  <:actions>
+    <.link patch={~p"/tests/#{@test}/show/edit"} phx-click={JS.push_focus()}>
+      <.button>Edit test</.button>
+    </.link>
+  </:actions>
+</.header>
+
+<.list>
+  <:item title="Name"><%= @test.name %></:item>
+</.list>
+
+<.back navigate={~p"/tests"}>Back to tests</.back>
+
+<.modal :if={@live_action == :edit} id="test-modal" show on_cancel={JS.patch(~p"/tests/#{@test}")}>
+  <.live_component
+    module={QuizzWeb.TestLive.FormComponent}
+    id={@test.id}
+    title={@page_title}
+    action={@live_action}
+    test={@test}
+    patch={~p"/tests/#{@test}"}
+  />
+</.modal>

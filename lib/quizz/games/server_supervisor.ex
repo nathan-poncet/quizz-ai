@@ -12,12 +12,12 @@ defmodule Quizz.Games.ServerSupervisor do
     DynamicSupervisor.start_link(__MODULE__, nil, name: :game_server_supervisor)
   end
 
-  def start_child(game_id, settings) do
+  def start_child(game_id, params) do
     Logger.debug("Starting game dynamic server supervisor for game #{game_id}")
 
     DynamicSupervisor.start_child(
       :game_server_supervisor,
-      {Server, game_id: game_id, settings: settings}
+      {Server, game_id: game_id, params: params}
     )
   end
 

@@ -1,12 +1,35 @@
 defmodule QuizzWeb.CreateGameLive do
+  alias Quizz.Games.Game
   alias Quizz.Games
   use QuizzWeb, :live_view
 
   def render(assigns) do
     ~H"""
     <div id="create_game" class="container mx-auto space-y-8">
-      <.form for={@form} id="create_game_form" phx-submit="submit" class="space-y-4 mx-auto">
-        <.input field={@form[:id]} type="text" label="Game ID" required />
+      <.form
+        for={@form}
+        id="create_game_form"
+        phx-submit="submit"
+        phx-change="validate"
+        class="space-y-4 mx-auto"
+      >
+        <.input field={@form[:topic]} type="text" label="Topic" required />
+        <.input
+          field={@form[:difficulty]}
+          options={[
+            {"Easy", :easy},
+            {"Medium", :medium},
+            {"Hard", :hard},
+            {"Genius", :genius},
+            {"Godlike", :godlike}
+          ]}
+          type="select"
+          label="Difficulty"
+          required
+        />
+
+        <.input field={@form[:nb_questions]} type="number" label="Number of questions" required />
+
         <.button phx-disable-with="Create game..." class="w-full">
           Create Game
         </.button>
@@ -41,21 +64,31 @@ defmodule QuizzWeb.CreateGameLive do
   end
 
   def mount(_params, _session, socket) do
+    changeset = Games.change_game_registration(%Game{})
+
     socket =
       socket
       |> assign_async(:topics, fn -> {:ok, %{topics: Games.topics_generate([])}} end)
-      |> assign(:form, to_form(%{"id" => ""}, as: :create_game))
+      |> assign(:form, to_form(changeset))
 
     {:ok, socket}
   end
 
-  def handle_event("submit", %{"id" => id}, socket) do
-    case Games.Client.fetch_game(id) do
+  def handle_event("validate", %{"game" => game}, socket) do
+    changeset = Games.change_game_registration(%Game{}, game)
+    {:noreply, assign(socket, :form, to_form(Map.put(changeset, :action, :validate)))}
+  end
+
+  def handle_event("submit", %{"game" => game}, socket) do
+    case Games.create_game(game) do
       {:ok, _game} ->
         {:noreply, socket}
 
-      {:error, _reason} ->
-        {:noreply, socket |> put_flash(:error, "Game with id: '#{id}' doesn't exist")}
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply, assign(socket, :form, to_form(changeset))}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, reason)}
     end
   end
 end

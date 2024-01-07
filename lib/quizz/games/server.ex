@@ -23,9 +23,9 @@ defmodule Quizz.Games.Server do
     Logger.debug("Initializing game server.")
 
     game_id = Keyword.get(init_args, :game_id)
-    settings = Keyword.get(init_args, :settings)
+    params = Keyword.get(init_args, :params)
 
-    {:ok, Game.new(game_id, settings)}
+    {:ok, Game.register(game_id, params)}
   end
 
   def whereis(game_id) do
@@ -79,8 +79,13 @@ defmodule Quizz.Games.Server do
   def handle_call(:game, _from, game), do: {:reply, game, game}
 
   def handle_call({:answer, player_id, answer}, _from, game) do
-    game = Game.answer(game, player_id, answer)
-    {:reply, game, game}
+    case Game.answer(game, player_id, answer) do
+      {:ok, game} ->
+        {:reply, {:ok, game}, game}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, game}
+    end
   end
 
   def handle_info({:DOWN, _ref, :process, _pid, _info} = message, game) do
