@@ -81,8 +81,8 @@ defmodule QuizzWeb.CreateGameLive do
 
   def handle_event("submit", %{"game" => game}, socket) do
     case Games.create_game(game) do
-      {:ok, _game} ->
-        {:noreply, socket}
+      {:ok, game} ->
+        {:noreply, push_navigate(socket, to: ~p"/game/#{game.id}")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}

@@ -1,10 +1,9 @@
-defmodule Quizz.Games.TopicsTest do
+defmodule Quizz.Games.GameTopicsTest do
+  alias Quizz.Games.GameTopics
   use ExUnit.Case
 
-  alias Quizz.Games.Topics
-
   test "generate/1 generates a list of topics" do
-    gen_topics = Topics.generate(["maths", "history"])
+    gen_topics = GameTopics.generate(["maths", "history"])
 
     gen_topics = gen_topics |> Enum.map(fn topic -> topic["title"] end)
 

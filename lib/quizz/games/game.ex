@@ -5,10 +5,14 @@ defmodule Quizz.Games.Game do
   alias Quizz.Games.{Game, GamePlayer, GameQuestion, GameQuestions}
 
   embedded_schema do
-    field :current_question, :integer
+    field :current_question, :integer, default: 0
     field :difficulty, Ecto.Enum, values: [:easy, :medium, :hard, :genius, :godlike]
     field :nb_questions, :integer
-    field :status, Ecto.Enum, values: [:lobby, :in_play, :finished], default: :lobby
+
+    field :status, Ecto.Enum,
+      values: [:lobby, :in_play, :in_play_question_timeout, :finished],
+      default: :lobby
+
     field :time_per_question, :integer, default: 10_000
     field :time_to_answer, :integer, default: 30_000
     field :topic, :string
@@ -17,9 +21,11 @@ defmodule Quizz.Games.Game do
     embeds_many :questions, GameQuestion
   end
 
+  @doc """
+  Create a new game.
+  """
   def register(
-        game_id,
-        %{topic: topic, difficulty: difficulty, nb_questions: nb_questions} = params
+        %{id: game_id, topic: topic, difficulty: difficulty, nb_questions: nb_questions} = params
       ) do
     %Game{
       id: game_id,
@@ -30,15 +36,72 @@ defmodule Quizz.Games.Game do
     }
   end
 
-  def add_player(%Game{status: :in_play}, _player_id),
+  @doc """
+  Start the game.
+  """
+  def start(%Game{status: :lobby} = game) do
+    :timer.send_after(game.time_per_question, self(), :reveal_responses)
+    {:ok, %Game{game | status: :in_play}}
+  end
+
+  def start(%Game{}),
     do: {:error, :game_has_already_started}
 
-  def add_player(%Game{status: :lobby} = game, player_id),
-    do: {:ok, %Game{game | players: game.players ++ [%GamePlayer{id: player_id}]}}
+  @doc """
+  Finish the game.
+  """
+  def finish(%Game{status: :in_play} = game), do: {:ok, %Game{game | status: :finished}}
 
-  def answer(%Game{status: status}, _player_id, _answer) when status != :in_play,
+  def finish(%Game{}),
     do: {:error, :game_is_not_in_play}
 
+  @doc """
+  Next question.
+  """
+  def next_question(
+        %Game{
+          current_question: current_question,
+          players: [owner_player | _],
+          questions: questions,
+          status: :in_play_question_timeout
+        } = game,
+        player_id
+      )
+      when current_question < length(questions) and
+             owner_player.id == player_id do
+    :timer.send_after(game.time_per_question, self(), :reveal_responses)
+    {:ok, %Game{game | current_question: current_question + 1}}
+  end
+
+  def next_question(
+        %Game{players: [owner_player | _], status: :in_play_question_timeout},
+        player_id
+      )
+      when owner_player.id != player_id,
+      do: {:error, :you_are_not_the_owner_of_the_game}
+
+  def next_question(
+        %Game{
+          current_question: current_question,
+          questions: questions,
+          status: :in_play_question_timeout
+        },
+        _player_id
+      )
+      when current_question >= length(questions),
+      do: {:error, :no_more_questions}
+
+  def next_question(%Game{} = _game, _player_id), do: {:error, :game_is_not_in_play}
+
+  @doc """
+  Add a player to the game.
+  """
+  def add_player(%Game{} = game, player_id),
+    do: {:ok, %Game{game | players: game.players ++ [%GamePlayer{id: player_id}]}}
+
+  @doc """
+  Add an answer for a player to the game.
+  """
   def answer(%Game{players: players, status: :in_play} = game, player_id, answer) do
     case Enum.find(players, fn player -> player.id == player_id end) do
       nil ->
@@ -49,11 +112,28 @@ defmodule Quizz.Games.Game do
     end
   end
 
-  def start(%Game{status: status}) when status != :lobby,
-    do: {:error, :game_has_already_started}
+  def answer(%Game{status: :in_play_question_timeout} = _game, _player_id, _answer),
+    do: {:error, :timeout}
 
-  def start(%Game{status: :lobby} = game), do: {:ok, %Game{game | status: :in_play}}
+  def answer(_game, _player_id, _answer),
+    do: {:error, :game_is_not_in_play}
 
+  defp update_answer(%Game{players: players} = game, player_id, answer) do
+    players =
+      Enum.map(players, fn player ->
+        if player.id == player_id do
+          GamePlayer.add_answer(player, answer)
+        else
+          player
+        end
+      end)
+
+    %Game{game | players: players}
+  end
+
+  @doc """
+  Update the registration game.
+  """
   def registration_changeset(game, attrs) do
     game
     |> cast(attrs, [
@@ -70,35 +150,20 @@ defmodule Quizz.Games.Game do
     |> validate_length(:topic, max: 160)
   end
 
+  @doc """
+  Update the game.
+  """
   def update_changeset(game, attrs) do
     game
     |> cast(attrs, [
-      :current_question,
-      :status,
       :time_per_question,
       :time_to_answer
     ])
     |> validate_required([
-      :current_question,
-      :status,
       :time_per_question,
       :time_to_answer
     ])
-    |> validate_number(:current_question, greater_than_or_equal_to: 0)
     |> validate_number(:time_per_question, greater_than_or_equal_to: 0)
     |> validate_number(:time_to_answer, greater_than_or_equal_to: 0)
-  end
-
-  defp update_answer(%Game{players: players} = game, player_id, answer) do
-    players =
-      Enum.map(players, fn player ->
-        if player.id == player_id do
-          GamePlayer.add_answer(player, answer)
-        else
-          player
-        end
-      end)
-
-    %Game{game | players: players}
   end
 end

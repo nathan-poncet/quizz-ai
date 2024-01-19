@@ -36,6 +36,6 @@ config :logger, level: :warning
 config :phoenix, :plug_init_mode, :runtime
 
 config :openai,
-  api_key: "",
-  organization_key: "",
+  api_key: "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",
+  organization_key: "org-SjrVaTrzC6lRADUgoi3GVT0t",
   http_options: [recv_timeout: 30_000]

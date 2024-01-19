@@ -12,6 +12,7 @@ defmodule Quizz.Application do
       Quizz.Repo,
       {DNSCluster, query: Application.get_env(:quizz, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Quizz.PubSub},
+      QuizzWeb.Presence,
       # Start the Finch HTTP client for sending emails
       {Finch, name: Quizz.Finch},
       # Start a worker by calling: Quizz.Worker.start_link(arg)

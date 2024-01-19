@@ -1,93 +1,134 @@
 defmodule Quizz.Games.GameTest do
   use ExUnit.Case
+  import Mock
 
-  alias Quizz.Games.Player
-  alias Quizz.Games.Question
+  alias Quizz.Games.GamePlayer
+  alias Quizz.Games.GameQuestions
+  alias Quizz.Games.GameQuestion
   alias Quizz.Games.Game
 
-  test "add_player/2 adds a player to the game" do
-    game = %Game{id: "123", players: []}
-
-    assert {:ok, %Game{id: "123", players: [%Player{id: "456"}]}} =
-             Game.add_player(game, "456")
+  setup_with_mocks([
+    {GameQuestions, [],
+     [
+       generate: fn %{topic: _, difficulty: _, nb_questions: nb_question} ->
+         List.duplicate(%GameQuestion{}, nb_question)
+       end
+     ]}
+  ]) do
+    :ok
   end
 
-  test "add_player/2 does not add a player to the game if the game is full" do
+  test "register" do
+    assert %Game{
+             id: "game_id",
+             topic: "Maths",
+             difficulty: :easy,
+             nb_questions: 2,
+             questions: [%GameQuestion{}, %GameQuestion{}]
+           } =
+             Game.register(%{id: "game_id", topic: "Maths", difficulty: :easy, nb_questions: 2})
+  end
+
+  test "start" do
+    game = %Game{status: :lobby, time_per_question: 10_000}
+    assert {:ok, %Game{status: :in_play}} = Game.start(game)
+  end
+
+  test "start when game is already started" do
+    game = %Game{status: :in_play}
+    assert {:error, :game_has_already_started} = Game.start(game)
+  end
+
+  test "finish" do
+    game = %Game{status: :in_play}
+    assert {:ok, %Game{status: :finished}} = Game.finish(game)
+  end
+
+  test "finish when game is not in play" do
+    game = %Game{status: :lobby}
+    assert {:error, :game_is_not_in_play} = Game.finish(game)
+  end
+
+  test "next_question" do
     game = %Game{
-      id: "123",
-      players: [%Player{id: "456"}],
-      settings: %{max_players: 1}
+      current_question: 0,
+      players: [%GamePlayer{id: "player_id"}],
+      questions: [
+        %GameQuestion{question: "question 1"},
+        %GameQuestion{question: "question 2"}
+      ],
+      status: :timeout
     }
 
-    assert {:error, _error} = Game.add_player(game, "456")
+    assert {:ok, %Game{current_question: 1}} = Game.next_question(game, "player_id")
   end
 
-  test "add_player/2 does not add a player to the game if the game has started" do
-    game = %Game{id: "123", players: [%Player{id: "456"}], status: :in_play}
-
-    assert {:error, _error} = Game.add_player(game, "456")
+  test "next_question when game is not in play" do
+    game = %Game{current_question: 2, status: :lobby}
+    assert {:error, :game_is_not_in_play} = Game.next_question(game, "player_id")
   end
 
-  test "answer/3 adds an answer to the player" do
-    game = %Game{id: "123", players: [%Player{id: "456", answers: []}]}
+  test "next_question when player is not the owner of the game" do
+    game = %Game{current_question: 2, players: [%GamePlayer{id: "player_id"}], status: :timeout}
 
-    assert %Game{id: "123", players: [%Player{id: "456", answers: [1]}]} =
-             Game.answer(game, "456", 1)
+    assert {:error, :you_are_not_the_owner_of_the_game} =
+             Game.next_question(game, "wrong_player_id")
   end
 
-  test "answer/3 does not add an answer to the player if the player does not exist" do
-    game = %Game{id: "123", players: [%Player{id: "456", answers: []}]}
-
-    assert %Game{id: "123", players: [%Player{id: "456", answers: []}]} =
-             Game.answer(game, "789", "answer")
+  test "next_question when there is no more questions" do
+    game = %Game{current_question: 2, status: :timeout, players: [%GamePlayer{id: "player_id"}]}
+    assert {:error, :no_more_questions} = Game.next_question(game, "player_id")
   end
 
-  test "start/1 starts the game" do
+  test "answer" do
     game = %Game{
-      id: "123",
-      players: [%Player{id: "456", answers: []}],
-      questions: [%Question{}]
-    }
-
-    expected_game = %Game{game | status: :in_play}
-
-    assert {:ok, expected_game} =
-             Game.start(game)
-  end
-
-  test "start/1 does not start the game if the game has already started" do
-    game = %Game{
-      id: "123",
-      players: [%Player{id: "456", answers: []}],
-      questions: [%Question{}],
+      current_question: 0,
+      players: [%GamePlayer{id: "player_id"}],
+      questions: [
+        %GameQuestion{question: "question 1", answer: "answer 1"},
+        %GameQuestion{question: "question 2", answer: "answer 2"}
+      ],
       status: :in_play
     }
 
-    assert {:error, _error} =
-             Game.start(game)
-  end
-
-  test "start/1 does not start the game if there are no questions" do
-    game = %Game{
-      id: "123",
-      players: [%Player{id: "456", answers: []}],
-      questions: []
+    expected_game = %Game{
+      game
+      | players: [%GamePlayer{id: "player_id", answers: ["answer 1"]}]
     }
 
-    assert {:error, _error} =
-             Game.start(game)
+    assert {:ok, expected_game} =
+             Game.answer(game, "player_id", "answer 1")
   end
 
-  test "generate_questions/1 generates questions" do
+  test "answer when game is timeout" do
     game = %Game{
-      id: "123",
-      players: [%Player{id: "456", answers: []}],
-      settings: %{topic: "math", difficulty: :easy, nb_questions: 1}
+      current_question: 0,
+      players: [%GamePlayer{id: "player_id"}],
+      questions: [
+        %GameQuestion{question: "question 1", answer: "answer 1"},
+        %GameQuestion{question: "question 2", answer: "answer 2"}
+      ],
+      status: :in_play_question_timeout
     }
 
-    expected_game = %Game{game | questions: [%Question{}]}
+    expected_game = %Game{
+      game
+      | players: [%GamePlayer{id: "player_id", answers: ["answer 1"]}]
+    }
 
-    assert expected_game =
-             Game.questions_generate(game)
+    assert {:error, :timeout} =
+             Game.answer(game, "player_id", "answer 1")
+  end
+
+  test "answer when game is not in play" do
+    game = %Game{current_question: 0, status: :lobby}
+    assert {:error, :game_is_not_in_play} = Game.answer(game, "player_id", "answer 1")
+  end
+
+  test "answer when player is not in the game" do
+    game = %Game{current_question: 0, players: [%GamePlayer{id: "player_id"}], status: :in_play}
+
+    assert {:error, :player_is_not_in_the_game} =
+             Game.answer(game, "wrong_player_id", "answer 1")
   end
 end

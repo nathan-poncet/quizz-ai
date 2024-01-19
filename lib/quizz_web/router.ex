@@ -23,6 +23,7 @@ defmodule QuizzWeb.Router do
     live "/", HomeLive
     live "/join-game", JoinGameLive
     live "/create-game", CreateGameLive
+    live "/game/:id", GameLive
     # get "/", PageController, :home
   end
 

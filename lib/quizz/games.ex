@@ -1,5 +1,6 @@
 defmodule Quizz.Games do
   require Logger
+  alias QuizzWeb.Presence
   alias Ecto.Changeset
   alias Quizz.Games.{Game, Server, ServerSupervisor}
 
@@ -18,7 +19,7 @@ defmodule Quizz.Games do
   def get_game(game_id) do
     case server(game_id) do
       {:ok, game_server} ->
-        Server.game(game_server)
+        {:ok, Server.game(game_server)}
 
       {:error, reason} ->
         {:error, reason}
@@ -38,12 +39,13 @@ defmodule Quizz.Games do
 
   """
   def create_game(attrs \\ %{}) do
-    Game.registration_changeset(%Game{}, attrs) |> do_create_game()
+    changeset = Game.registration_changeset(%Game{}, attrs)
+    do_create_game(changeset)
   end
 
-  defp do_create_game(%Changeset{valid?: true, data: game}) do
-    with {:ok, pid} <- ServerSupervisor.start_child(game.id, game),
-         {:ok, game} <- Server.game(pid) do
+  defp do_create_game(%Changeset{valid?: true, changes: attrs}) do
+    with {:ok, pid} <- ServerSupervisor.start_child(attrs),
+         game <- Server.game(pid) do
       {:ok, game}
     else
       {:error, reason} ->
@@ -169,6 +171,14 @@ defmodule Quizz.Games do
   """
   def change_game_registration(%Game{} = game, attrs \\ %{}) do
     Game.registration_changeset(game, attrs)
+  end
+
+  @doc """
+  Get the list of players currently present in the specified game.
+  """
+  @spec list_presence(Game.join_code()) :: %{optional(Player.id()) => map()}
+  def list_presence(join_code) do
+    Presence.list("game:" <> join_code)
   end
 
   defp server(game_id) do

@@ -19,7 +19,7 @@ defmodule Quizz.MixProject do
   def application do
     [
       mod: {Quizz.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :observer, :wx, :runtime_tools]
     ]
   end
 

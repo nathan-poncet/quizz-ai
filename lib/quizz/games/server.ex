@@ -1,13 +1,15 @@
 defmodule Quizz.Games.Server do
-  require Logger
   use GenServer
+  require Logger
   alias Quizz.Games.Game
 
   def start_link(args) do
     Logger.debug("Starting game server.")
-    game_id = Keyword.get(args, :game_id)
 
-    GenServer.start_link(__MODULE__, args, name: via_tuple(game_id))
+    game_id = uuid()
+    params = Keyword.get(args, :params)
+
+    GenServer.start_link(__MODULE__, Map.merge(%{id: game_id}, params), name: via_tuple(game_id))
   end
 
   def child_spec(game_id) do
@@ -22,10 +24,9 @@ defmodule Quizz.Games.Server do
   def init(init_args) do
     Logger.debug("Initializing game server.")
 
-    game_id = Keyword.get(init_args, :game_id)
-    params = Keyword.get(init_args, :params)
+    QuizzWeb.Presence.subscribe()
 
-    {:ok, Game.register(game_id, params)}
+    {:ok, Game.register(init_args)}
   end
 
   def whereis(game_id) do
@@ -76,7 +77,7 @@ defmodule Quizz.Games.Server do
     end
   end
 
-  def handle_call(:game, _from, game), do: {:reply, game, game}
+  def handle_call(:game, _from, game), do: {:reply, Map.delete(game, :questions), game}
 
   def handle_call({:answer, player_id, answer}, _from, game) do
     case Game.answer(game, player_id, answer) do
@@ -88,6 +89,25 @@ defmodule Quizz.Games.Server do
     end
   end
 
+  def handle_call({:next_question, player_id}, _from, game) do
+    case Game.next_question(game, player_id) do
+      {:ok, game} ->
+        {:reply, {:ok, game}, game}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, game}
+    end
+  end
+
+  # Timer
+  def handle_info(:reveal_responses, game) do
+    {:noreply, game}
+  end
+
+  def handle_info(:timeout, game) do
+    {:noreply, game}
+  end
+
   def handle_info({:DOWN, _ref, :process, _pid, _info} = message, game) do
     Logger.info("Handling disconnected ref in Game #{game.id}")
     Logger.info("#{inspect(message)}")
@@ -97,4 +117,12 @@ defmodule Quizz.Games.Server do
   end
 
   defp via_tuple(id), do: {:via, Registry, {:game_server_registry, id}}
+
+  @id_length 16
+  defp uuid() do
+    @id_length
+    |> :crypto.strong_rand_bytes()
+    |> Base.url_encode64()
+    |> binary_part(0, @id_length)
+  end
 end
